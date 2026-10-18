@@ -26,9 +26,9 @@ int main(void){
 ➜  gcc hello.c -o hello
 ```
 
-با سویچ `Wall` میتوان تمام هشدارهای مهم زمان کامپایل را دید.
+با سویچ `Wall-` میتوان تمام هشدارهای مهم زمان کامپایل را دید.
 ```bash
-➜  gcc -wall hello.c -o hello
+➜  gcc -Wall hello.c -o hello
 ```
 
 حالا که باینری را داریم یک directory با اسم دلخواه میسازیم. (اسمی که به عنوان اسم پکیج شناخته میشود)
@@ -45,7 +45,7 @@ int main(void){
 فایل باینری را در مسیر `hello-app/usr/bin/` قرار میدهیم .
 > معمولا مسیر `/usr/bin/` محل استاندارد برنامه‌های نصب‌شده توسط پکیج منیجر است و مسیر `/usr/local/bin/` محل برنامه‌هایی که خودمون نصب می‌کنیم
 
-در مسیر `/hello-app/DEBIAN` یک فایل به اسم control میسازیم که metadata برنامه نهایی را در ان قرار میدهیم
+در مسیر `/hello-app/DEBIAN` یک فایل به اسم **control** میسازیم که metadata برنامه نهایی را در ان قرار میدهیم
 ```
 Package: hello-deb
 Version: 1.0
@@ -73,7 +73,7 @@ hello.1.0.deb: Debian binary package (format 2.0), with control.tar.zst, data co
 
 ## بررسی درون پکیج ساخته شده
 ```bash
-➜  dpkg --content hello.1.0.deb
+➜  dpkg --contents hello.1.0.deb
 drwxrwxr-x ubuntu/ubuntu     0 2026-10-14 13:38 ./
 drwxrwxr-x ubuntu/ubuntu     0 2026-10-14 13:38 ./usr/
 drwxrwxr-x ubuntu/ubuntu     0 2026-10-14 13:38 ./usr/bin/
