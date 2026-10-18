@@ -6,7 +6,7 @@
 ابزارهای زیر را نصب میکنیم:
 
 ```bash
-sudo apt install debhelper devscripts
+➜  sudo apt install debhelper devscripts
 ```
 
 برای استفاده از این ابزار باید ساختار پروژه به این شکل باشد:
@@ -110,7 +110,103 @@ Description: A simple hello world program
 
 همین دو خط کار اصلی را انجام می‌دهد. `dh` به‌ترتیب `dh_auto_build` (اجرای `make`)، `dh_auto_install` (اجرای `make install DESTDIR=debian/hello-deb`)، `dh_strip`، `dh_shlibdeps`، `dh_installdeb` (که فایل‌های `/etc` را خودکار conffile می‌کند) و `dh_md5sums` و `dh_builddeb` را صدا می‌زند.
 
+این فایل خودش یک Makefile است و `dpkg-buildpackage` آن را **مستقیم اجرا می‌کند**، مثل `debian/rules build`، نه با `make -f rules`. به همین دلیل دو چیز لازم دارد:
+- **اجرایی بودن:** `chmod +x debian/rules`. بدون آن خطای `Permission denied` می‌گیری.
+- **خط shebang:** `#!/usr/bin/make -f` به سیستم می‌گوید فایل را با `make` اجرا کند. گزینه `-f` یعنی «این فایل را به‌عنوان Makefile بخوان».
+
+
+- **`%:`** یک قاعده‌ی الگو است و با **هر نام target** جور می‌شود. دبیان چند target استاندارد از `rules` می‌خواهد (`clean`، `build`، `build-arch`، `build-indep`، `binary`، `binary-arch`، `binary-indep`). به‌جای نوشتن همه، یک قاعده برای همه نوشته‌ایم.
+- ‏ **`dh $@`** نام target را به برنامه‌ی `dh` می‌دهد. `$@` در Makefile یعنی «نام target فعلی». پس `debian/rules binary` می‌شود `dh binary`.
+- جلوی `dh` باید **Tab** باشد، نه فاصله.
+
+#### ‏ `dh` چه می‌کند
+‏`dh` برای هر target یک **دنباله‌ی ثابت** از ابزارهای `dh_*` دارد و به ترتیب اجرا می‌کند. دنباله‌ی `binary` تقریباً این است:
+
+| مرحله                                    | کاری که می‌کند                                                                |
+| ---------------------------------------- | ----------------------------------------------------------------------------- |
+| `dh_auto_configure`                      | اجرای configure (اگر پروژه داشته باشد)                                        |
+| `dh_auto_build`                          | اجرای `make`                                                                  |
+| `dh_auto_test`                           | اجرای `make test` اگر وجود داشته باشد                                         |
+| `dh_auto_install`                        | اجرای `make install DESTDIR=...`                                              |
+| `dh_installdocs`، `dh_installchangelogs` | گذاشتن مستندات و changelog در `usr/share/doc`                                 |
+| `dh_strip`                               | حذف نمادهای دیباگ                                                             |
+| `dh_shlibdeps`                           | تولید `Depends` از روی کتابخانه‌های لینک‌شده                                  |
+| `dh_installdeb`                          | کپی اسکریپت‌ها و ساخت `conffiles` (فایل‌های `/etc` را خودکار conffile می‌کند) |
+| `dh_gencontrol`                          | ساخت `DEBIAN/control` از روی `debian/control`                                 |
+| `dh_md5sums`                             | ساخت `md5sums`                                                                |
+| `dh_builddeb`                            | ساخت `.deb`                                                                   |
+
+```bash
+➜  cd ~/hello-deb-1.0
+➜  dh binary --no-act
+dh_testroot
+dh_prep
+dh_installdirs
+dh_auto_install --destdir=debian/hello-deb/
+dh_install
+dh_installdocs
+dh_installchangelogs
+dh_installexamples
+dh_installman
+dh_installcatalogs
+dh_installcron
+dh_installdebconf
+dh_installemacsen
+dh_installifupdown
+dh_installinfo
+dh_installinit
+dh_installtmpfiles
+dh_installsystemd
+dh_installsystemduser
+dh_installmenu
+dh_installmime
+dh_installmodules
+dh_installlogcheck
+dh_installlogrotate
+dh_installpam
+dh_installppp
+dh_installudev
+dh_installgsettings
+dh_installinitramfs
+dh_installalternatives
+dh_bugfiles
+dh_ucf
+dh_lintian
+dh_icons
+dh_perl
+dh_usrlocal
+dh_link
+dh_installwm
+dh_installxfonts
+dh_strip_nondeterminism
+dh_compress
+dh_fixperms
+dh_missing
+dh_dwz -a
+dh_strip -a
+dh_makeshlibs -a
+dh_shlibdeps -a
+dh_installdeb
+dh_gencontrol
+dh_md5sums
+dh_builddeb
+```
+
+اگر مرحله‌ای باید فرق کند، `override_` می‌نویسیم:
+```make
+#!/usr/bin/make -f
+%:
+	dh $@
+
+override_dh_auto_install:
+	install -D -m 0755 hello debian/hello-deb/usr/bin/hello
+```
+
+
+
 `debian/changelog` :
+دو کار می‌کند: **تاریخچه‌ی تغییرات** است، و **منبع نسخه‌ی بسته**. نسخه‌ی بسته را `dpkg-buildpackage` از اولین ورودی همین فایل می‌خواند، نه از `control`.
+
 (فرمت دقیق به این صورت است. دو فاصله قبل از `*` و یک فاصله قبل از `--`):
 
 ```
@@ -122,12 +218,23 @@ hello-deb (1.0) unstable; urgency=medium
 ```
 
 `debian/source/format`:
+فقط یک خط است و **قالب بسته‌ی سورس** را تعیین می‌کند، یعنی اینکه `dpkg-source` سورس را چطور آرشیو کند.
+
+| مقدار          | وقتی                                                           | خروجی سورس                                                                  | نسخه                |
+| -------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------- |
+| `3.0 (native)` | خودکاربر نویسنده‌ برنامه‌ است و برنامه جای دیگری منتشر نمی‌شود | یک آرشیو `hello-deb_1.0.tar.xz`                                             | `1.0` بدون revision |
+| `3.0 (quilt)`  | برنامه‌ی کس دیگری را بسته‌بندی میکنیم                          | `.orig.tar.xz` (دست‌نخورده) و `.debian.tar.xz` (پوشه‌ی `debian/` و وصله‌ها) | `1.0-1`             |
+
+
 
 ```
 3.0 (native)
 ```
 
+اگر این فایل نباشد، `dpkg-source` قالب قدیمی `1.0` را فرض می‌کند و هشدار می‌دهد. برای ساختن فقط `.deb` (با `b-`) بی‌اهمیت است، ولی برای ساخت بسته‌ی سورس لازم است.
+
 `debian/copyright`:
+مجوز برنامه را بیان می‌کند. قالب **DEP-5** است، یعنی ساختار ماشین‌خوان که ابزارها بتوانند بخوانند.
 
 ```
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
@@ -139,6 +246,15 @@ License: GPL-3+
  This program is free software; see /usr/share/common-licenses/GPL-3
  for the full license text.
 ```
+
+ساختار
+
+- **بخش اول (header):** `Format` (آدرس مشخصات، ثابت) و `Upstream-Name`. فیلدهای اختیاری دیگر: `Upstream-Contact` و `Source` (آدرس سورس).
+- **بخش‌های `Files:`:** هر کدام یک گروه فایل را با glob مشخص می‌کنند. `*` یعنی همه. اگر چند بخش داشته باشی، **بخش مشخص‌تر و پایین‌تر** بر بخش کلی اولویت دارد. مثال: `Files: *` با MIT و `Files: vendor/*` با Apache-2.0.
+- ‏ **`Copyright:`** سال و دارنده‌ی حق.
+- ‏ **`License:`** خط اول نام کوتاه مجوز است. خط‌های بعد **با یک فاصله شروع می‌شوند** (متن مجوز یا ارجاع). یک خط خالی داخل متن را با `.` (فاصله و نقطه) می‌نویسند.
+
+
 
 دستورها:
 
